@@ -1,0 +1,2527 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Viewer Offline</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>{ }</text></svg>">
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #a78bfa;
+            --accent-orange: #f97316;
+            --accent-blue: #3b82f6;
+            --success: #10b981;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-light: #cbd5e1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.4;
+            overflow: hidden;
+        }
+
+        .app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .toolbar {
+            background: var(--surface-light);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+            overflow: hidden;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .panel {
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .panel-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            min-height: 60px;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text);
+        }
+
+        .panel-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow: auto;
+            padding: 1rem;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-orange {
+            background: var(--accent-orange);
+            color: white;
+        }
+
+        .btn-orange:hover {
+            background: #ea580c;
+        }
+
+        .btn-blue {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-blue:hover {
+            background: #2563eb;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-light);
+        }
+
+        .btn-outline:hover {
+            background: var(--surface-light);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .textarea {
+            width: 100%;
+            height: 98%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            background: var(--background);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            resize: none;
+        }
+
+        .textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .treeview {
+            font-size: 0.875rem;
+            line-height: 1.5;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .node {
+            margin: 0.125rem 0;
+            user-select: none;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.125rem 0.25rem;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .node-header:hover {
+            background: var(--surface-light);
+        }
+
+        .node-header.expanded {
+            background: var(--surface-light);
+        }
+
+        .node-icon {
+            width: 0.875rem;
+            height: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--accent-orange);
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .node-key {
+            color: var(--text);
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .node-type {
+            color: var(--accent-blue);
+            font-size: 0.8rem;
+            margin-left: 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .node-value {
+            margin-left: 0.5rem;
+            word-break: break-all; /* Permite quebra de linha em valores longos */
+            white-space: normal; /* Permite quebra de linha */
+            cursor: pointer;
+            padding: 0.125rem 0.25rem;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .node-value:hover {
+            background: rgba(139, 92, 246, 0.2);
+        }
+
+        .node-value.string {
+            color: #7dd3fc;
+        }
+
+        .node-value.number {
+            color: #bbf7d0;
+        }
+
+        .node-value.boolean {
+            color: #fde68a;
+        }
+
+        .node-value.null {
+            color: var(--text-light);
+            font-style: italic;
+        }
+
+        .node-children {
+            margin-left: 1.25rem;
+            border-left: 1px solid var(--border);
+            padding-left: 0.75rem;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .array-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .array-index {
+            color: var(--accent-orange);
+            font-weight: 500;
+            min-width: 2rem;
+            flex-shrink: 0;
+        }
+
+        .array-value {
+            flex: 1;
+            min-width: 0; /* Importante para evitar overflow */
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .badge-primary {
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--primary);
+        }
+
+        .badge-orange {
+            background: rgba(249, 115, 22, 0.2);
+            color: var(--accent-orange);
+        }
+
+        .icon {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .status-bar {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-light);
+            flex-shrink: 0;
+        }
+
+        .search-input-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.5rem 2rem 0.5rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.75rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .clear-search {
+            position: absolute;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 3px;
+        }
+
+        .clear-search:hover {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .search-results {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-light);
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .search-nav {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 0.25rem;
+        }
+
+        .highlight {
+            background: rgba(249, 115, 22, 0.4);
+            border-radius: 2px;
+            padding: 0.125rem 0.25rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .treeview-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Modal para exportação */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 70%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+        }
+
+        .modal-close:hover {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .modal-body {
+            flex: 1;
+            padding: 1rem;
+            overflow: auto;
+        }
+
+        .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .export-textarea {
+            width: 100%;
+            height: 300px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            background: var(--background);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            resize: none;
+        }
+        
+        .btn-teal {
+            background: #0d9488;
+            color: white;
+        }
+
+        .btn-teal:hover {
+            background: #0f766e;
+        }
+
+        .btn-purple {
+            background: #7e22ce;
+            color: white;
+        }
+
+        /* Para garantir que os containers mantenham suas larguras */
+        .panel-content > * {
+            min-width: 0;
+        }
+        
+        /* Estilos para o sistema de abas */
+        .tabs-container {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-end;
+            flex-shrink: 0;
+            overflow: hidden;
+            padding: 0;
+            position: relative;
+        }
+
+        .tabs-container::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .tabs-container::-webkit-scrollbar-track {
+            background: var(--surface-light);
+        }
+
+        .tabs-container::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .tab-list {
+            display: flex;
+            flex: 1;
+            min-width: 0;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            padding: 0 0.25rem;
+            align-items: flex-end;
+        }
+        
+        .tab-list::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .tab-list::-webkit-scrollbar-track {
+            background: var(--surface-light);
+        }
+
+        .tab-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem 0.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-left: none;
+            color: var(--text-light);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+            min-width: 120px;
+            border-radius: 6px 6px 0 0;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .tab:hover {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .tab.active {
+            background: var(--surface-light);
+            color: var(--text);
+            border-color: var(--border);
+            border-bottom: 1px solid var(--surface-light);
+            font-weight: 500;
+        }
+        
+        .tab.active::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            right: -1px;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab-close {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 0.125rem;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tab-close:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .add-tab-btn-fixed {
+            background: var(--surface-light);
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            border-left: 1px solid var(--border);
+            border-radius: 0;
+            min-height: 41px;
+            position: relative;
+        }
+
+        .add-tab-btn-fixed:hover {
+            background: var(--surface);
+            color: var(--text);
+        }
+        
+        .path-suggestion:hover {
+            background: var(--surface-light) !important;
+        }
+        
+        .path-suggestion:last-child div {
+            border-bottom: none !important;
+        }
+        
+        mark {
+            background: rgba(249, 115, 22, 0.3) !important;
+            color: inherit !important;
+            padding: 0.125rem 0.25rem !important;
+            border-radius: 2px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>JSON Viewer Offline - Formatador & Compressor</h1>
+        </header>
+
+        <div class="toolbar"> 
+            <button class="btn btn-purple" onclick="extractPaths()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+                Extrair Paths
+            </button>  
+            <button class="btn btn-teal" onclick="openCalculator()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                Estatísticas por Paths
+            </button>
+            <button class="btn btn-orange" onclick="formatJSON()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                </svg>
+                Formatar
+            </button>
+            <button class="btn btn-blue" onclick="compressJSON()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                Comprimir
+            </button>
+            <button class="btn btn-success" onclick="copiarJSON()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                Copiar JSON
+            </button>
+            <button class="btn btn-success" onclick="exportTreeView()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Exportar TreeView
+            </button>
+            <button class="btn btn-primary" onclick="loadExample()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Carregar Exemplo
+            </button>
+            <button class="btn btn-outline" onclick="stringifyJSON()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                Stringficar JSON
+            </button>
+            <button class="btn btn-outline" onclick="parseStringifiedJSON()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/>
+                </svg>
+                Parse Stringficado
+            </button>
+            <button class="btn btn-outline" onclick="clearAll()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Limpar Json
+            </button>
+            <button class="btn btn-outline" onclick="clearAllTabs()" title="Limpar todas as abas">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Limpar Abas
+            </button>
+        </div>
+        
+        <!-- Sistema de Abas -->
+        <div class="tabs-container">
+            <div class="tab-list" id="tabList">
+                <!-- As abas serão geradas dinamicamente aqui -->
+            </div>
+            <div class="add-tab-btn-fixed" onclick="addNewTab()" title="Nova aba (Ctrl + Rodinha)">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">JSON de Entrada</div>
+                    <div class="panel-controls">
+                        <span class="badge badge-primary" id="jsonStatus">Válido</span>
+                    </div>
+                </div>
+                
+                <div class="search-box" style="justify-content: flex-start;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.75rem; color: var(--text-light); white-space: nowrap;">Prefixo Raiz:</label>
+                        <input type="text" 
+                               id="rootPrefix" 
+                               placeholder="JSON" 
+                               style="padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 0.75rem; width: 300px;"
+                               oninput="validateRootPrefix(this)"
+                               onblur="applyRootPrefix()">
+                    </div>
+                </div>
+                
+                <div class="panel-content">
+                    <textarea class="textarea" id="jsonInput" placeholder="Cole seu JSON aqui..."></textarea>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">TreeView</div>
+                    <div class="panel-controls">
+                        <button class="btn btn-outline btn-sm" onclick="expandAll()">
+                            <svg class="icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            Expandir Tudo
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="collapseAll()">
+                            <svg class="icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                            </svg>
+                            Colapsar Tudo
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="toggleSearchBehavior()" title="Comportamento da busca ao mudar de aba">
+                            <svg class="icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <span id="searchBehaviorText">Manter busca</span>
+                        </button>
+                        <span class="badge badge-orange" id="nodesCount">0 nós</span>
+                    </div>
+                </div>
+                <div class="search-box">
+                    <div class="search-input-container">
+                        <input type="text" class="search-input" id="searchInput" placeholder="Buscar por chave ou valor...">
+                        <button class="clear-search" onclick="clearSearch()" style="display: none;" id="clearSearchBtn">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <button class="btn btn-outline" onclick="performSearch()">Buscar</button>
+                </div>
+                <div class="search-results hidden" id="searchResults">
+                    <div id="searchResultsText">Nenhum resultado</div>
+                    <div class="search-nav">
+                        <button class="btn btn-outline" onclick="previousResult()">Anterior</button>
+                        <button class="btn btn-outline" onclick="nextResult()">Próximo</button>
+                        <span id="searchPosition">0/0</span>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="treeview" id="treeviewContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="status-bar">
+            <span id="statusText">Pronto</span>
+            <div style="display: flex; gap: 0.75rem;">
+                <span id="treeInfo">Profundidade: 0 | Nós: 0</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal para exportação -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Exportar TreeView como Texto</div>
+                <button class="modal-close" onclick="closeExportModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <textarea class="export-textarea" id="exportText" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeExportModal()">Fechar</button>
+                <button class="btn btn-primary" onclick="copyExportText()">Copiar Texto</button>
+                <button class="btn btn-success" onclick="downloadExportText()">Baixar Arquivo</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="stringifyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">JSON Stringficado</div>
+                <button class="modal-close" onclick="closeStringifyModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 1rem;">
+                    <div id="stringifyStatus" style="font-size: 0.75rem; color: var(--accent-blue); margin-top: 0.5rem;"></div>
+                </div>
+                <textarea class="export-textarea" id="stringifiedText" placeholder="O JSON stringficado aparecerá aqui..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeStringifyModal()">Fechar</button>
+                <button class="btn btn-primary" onclick="copyStringifiedText()">Copiar Texto</button>
+                <button class="btn btn-success" onclick="useStringifiedInInput()">Usar no Input</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para Extrair Paths -->
+    <div class="modal" id="pathsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Paths do JSON</div>
+                <button class="modal-close" onclick="closePathsModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div id="pathsCount" style="font-size: 0.75rem; color: var(--accent-blue);">
+                        0 paths encontrados
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--text-light); cursor: pointer;">
+                            <input type="checkbox" id="sortPaths" onchange="toggleSortPaths()">
+                            Ordem alfabética
+                        </label>
+                        <button class="btn btn-outline btn-sm" onclick="copyAllPaths()">
+                            <svg class="icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            Copiar Todos
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- CONTAINER PARA A LISTA DE PATHS -->
+                <div id="pathsList" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; background: var(--background);">
+                    <!-- Os paths serão exibidos aqui -->
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePathsModal()">Fechar</button>
+                <button class="btn btn-primary" onclick="downloadPaths()">Baixar Paths</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal da Calculadora -->
+    <div class="modal" id="calculatorModal">
+        <div class="modal-content" style="max-width: 50%;">
+            <div class="modal-header">
+                <div class="modal-title">Calculadora de Paths</div>
+                <button class="modal-close" onclick="closeCalculator()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-light);">
+                        Digite ou selecione o path:
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" id="calculatorPath" 
+                               style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font-family: inherit;"
+                               placeholder="Comece a digitar ou clique para ver sugestões..."
+                               oninput="filterPaths()"
+                               onfocus="showPathsDropdown()"
+                               onblur="hidePathsDropdown()">
+                        
+                        <!-- Dropdown de sugestões -->
+                        <div id="pathsDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 4px 4px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                            <div id="pathsDropdownContent">
+                                <!-- As sugestões serão preenchidas aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="btn btn-blue" onclick="calculateCount()">Contar Ocorrências</button>
+                    <button class="btn btn-orange" onclick="calculateStats()">Estatísticas Completas</button>
+                </div>
+                
+                <div id="calculatorResults" style="background: var(--background); padding: 1rem; border-radius: 6px; border: 1px solid var(--border); min-height: 100px;">
+                    <div style="color: var(--text-light); text-align: center;">Os resultados aparecerão aqui...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeCalculator()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sistema de abas
+        let tabs = [];
+        let activeTabId = null;
+        let tabCounter = 0;
+        
+        let searchBehavior = 'perform'; // 'perform' ou 'clear'
+        const SEARCH_BEHAVIOR_KEY = 'json_viewer_search_behavior';
+
+        function loadSearchBehavior() {
+            const savedBehavior = localStorage.getItem(SEARCH_BEHAVIOR_KEY);
+            if (savedBehavior) {
+                searchBehavior = savedBehavior;
+            }
+            updateSearchBehaviorUI();
+        }
+
+        function updateSearchBehaviorUI() {
+            const textElement = document.getElementById('searchBehaviorText');
+            if (searchBehavior === 'perform') {
+                textElement.textContent = 'Manter busca';
+                textElement.title = 'Buscar automaticamente ao mudar de aba';
+            } else {
+                textElement.textContent = 'Limpar busca';
+                textElement.title = 'Limpar busca ao mudar de aba';
+            }
+        }
+
+        function toggleSearchBehavior() {
+            searchBehavior = searchBehavior === 'perform' ? 'clear' : 'perform';
+            localStorage.setItem(SEARCH_BEHAVIOR_KEY, searchBehavior);
+            updateSearchBehaviorUI();
+            updateStatus(`Comportamento da busca: ${searchBehavior === 'perform' ? 'Manter busca' : 'Limpar busca'}`);
+        }
+
+        // Inicialização do sistema de abas
+        function initializeTabs() {
+            loadTabsFromStorage();
+            renderTabs();
+            
+            // Se não houver abas, cria uma inicial
+            if (tabs.length === 0) {
+                addNewTab();
+            } else {
+                // Ativa a aba salva como ativa ou a primeira
+                const savedActiveTabId = localStorage.getItem('json_viewer_active_tab');
+                const tabToActivate = savedActiveTabId ? 
+                    tabs.find(tab => tab.id === savedActiveTabId) : tabs[0];
+                
+                if (tabToActivate) {
+                    switchToTab(tabToActivate.id);
+                }
+            }
+        }
+
+        // Adiciona uma nova aba
+        function addNewTab() {
+            const newTabId = 'tab_' + Date.now() + '_' + (++tabCounter);
+            const newTab = {
+                id: newTabId,
+                name: `JSON ${tabs.length + 1}`,
+                jsonInput: '',
+                rootPrefix: 'JSON'
+            };
+            
+            tabs.push(newTab);
+            renderTabs();
+            switchToTab(newTabId);
+            saveTabsToStorage();
+        }
+
+        // Remove uma aba
+        function removeTab(tabId, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
+            if (tabs.length <= 1) {
+                updateStatus('Não é possível remover a última aba');
+                return;
+            }
+            
+            const tabIndex = tabs.findIndex(tab => tab.id === tabId);
+            if (tabIndex === -1) return;
+            
+            tabs.splice(tabIndex, 1);
+            
+            // Se a aba removida era a ativa, ativa a anterior ou a primeira
+            if (activeTabId === tabId) {
+                const newActiveTab = tabs[Math.max(0, tabIndex - 1)] || tabs[0];
+                switchToTab(newActiveTab.id);
+            }
+            
+            renderTabs();
+            saveTabsToStorage();
+        }
+
+        // Alterna para uma aba específica
+        function switchToTab(tabId) {
+            // Salva o estado atual da aba ativa antes de trocar
+            saveCurrentTabState();
+            
+            const tab = tabs.find(t => t.id === tabId);
+            if (!tab) return;
+            
+            activeTabId = tabId;
+            
+            // Atualiza a interface com os dados da nova aba
+            document.getElementById('jsonInput').value = tab.jsonInput || '';
+            document.getElementById('rootPrefix').value = tab.rootPrefix === 'JSON' ? '' : tab.rootPrefix;
+            currentRootPrefix = tab.rootPrefix || 'JSON';
+            
+            // Atualiza a treeview se houver JSON
+            if (tab.jsonInput) {
+                updateTreeView();
+            } else {
+                document.getElementById('treeviewContainer').innerHTML = '';
+                document.getElementById('nodesCount').textContent = '0 nós';
+                document.getElementById('treeInfo').textContent = 'Profundidade: 0 | Nós: 0';
+            }
+            
+            // Atualiza a interface das abas
+            renderTabs();
+            updateStatus(`Aba "${tab.name}" ativada`);
+            
+            if (searchBehavior === 'perform') {
+                performSearch();
+            } else {
+                clearSearch();
+            }
+            
+            // Salva a aba ativa
+            localStorage.setItem('json_viewer_active_tab', activeTabId);
+        }
+
+        // Salva o estado atual da aba ativa
+        function saveCurrentTabState() {
+            if (!activeTabId) return;
+            
+            const tab = tabs.find(t => t.id === activeTabId);
+            if (!tab) return;
+            
+            tab.jsonInput = document.getElementById('jsonInput').value;
+            tab.rootPrefix = document.getElementById('rootPrefix').value || 'JSON';
+            
+            saveTabsToStorage();
+        }
+
+        // Renderiza as abas na interface
+        function renderTabs() {
+            const tabList = document.getElementById('tabList');
+            tabList.innerHTML = '';
+            
+            tabs.forEach(tab => {
+                const tabElement = document.createElement('div');
+                tabElement.className = `tab ${tab.id === activeTabId ? 'active' : ''}`;
+                tabElement.setAttribute('data-tab-id', tab.id);
+                tabElement.onclick = () => switchToTab(tab.id);
+                
+                tabElement.innerHTML = `
+                    <span class="tab-name">${tab.name}</span>
+                    <button class="tab-close" onclick="removeTab('${tab.id}', event)">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                `;
+                
+                tabList.appendChild(tabElement);
+            });
+        }
+
+        // Salva as abas no localStorage
+        function saveTabsToStorage() {
+            localStorage.setItem('json_viewer_tabs', JSON.stringify(tabs));
+        }
+
+        // Carrega as abas do localStorage
+        function loadTabsFromStorage() {
+            try {
+                const savedTabs = localStorage.getItem('json_viewer_tabs');
+                if (savedTabs) {
+                    tabs = JSON.parse(savedTabs);
+                }
+            } catch (e) {
+                console.error('Erro ao carregar abas do localStorage:', e);
+                tabs = [];
+            }
+        }
+        
+        // Chaves para o localStorage
+        const STORAGE_KEYS = {
+            JSON_INPUT: 'json_viewer_input',
+            ROOT_PREFIX: 'json_viewer_root_prefix'
+        };
+        
+        // JSON de exemplo genérico
+        const exampleJSON = {
+          "orderId": "A12345",
+          "customer": {
+            "name": "joão da silva",
+            "email": "joao.silva@example.com",
+            "taxes": [
+              {
+                "type": "CNPJ",
+                "value": "12123456000152",
+                "validate": null
+              },
+              {
+                "type": "INSCRICAO_ESTADUAL",
+                "value": "987654321",
+                "validate": null
+              }
+            ],
+            "address": [
+              {
+                "type": "FATURAMENTO",
+                "street": "Rua das Rosas, 526",
+                "city": "São Carlos",
+                "state": "SP",
+                "zipCode": "13560-011"
+              },
+              {
+                "type": "COBRANCA",
+                "street": "Rua das Orquídeas",
+                "city": "Avaré",
+                "state": "SP",
+                "zipCode": "18700-020"
+              },
+              {
+                "type": "ENTREGA",
+                "street": "Rua dos Palmares",
+                "city": "Paranapanema",
+                "state": "SP",
+                "zipCode": "18720-001"
+              }
+            ],
+            "isMember": true
+          },
+          "products": [
+            {
+              "productId": "P001",
+              "name": "Wireless Mouse",
+              "quantity": 2,
+              "price": 25.5,
+              "image": "https://example.com/wireless-mouse.jpg",
+              "color": "#3498db"
+            },
+            {
+              "productId": "P002",
+              "name": "Keyboard",
+              "quantity": 1,
+              "price": 45,
+              "image": "https://example.com/keyboard.jpg",
+              "color": "#2ecc71"
+            }
+          ],
+          "orderDate": "2025-01-02T10:15:30Z",
+          "status": "Processing",
+          "isPaid": false,
+          "totalAmount": 96
+        };   
+
+        let currentJSON = null;
+        let searchResults = [];
+        let currentSearchIndex = -1;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs(); // Inicializa o sistema de abas
+            loadSearchBehavior(); // Carrega configuração da busca
+            setupMiddleClickClose();
+            setupGlobalShortcuts();
+            
+            document.getElementById('jsonInput').addEventListener('input', function() {
+                saveCurrentTabState(); // Salva ao digitar
+                updateTreeView();
+            });
+            
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+            
+            document.getElementById('searchInput').addEventListener('input', function() {
+                const clearBtn = document.getElementById('clearSearchBtn');
+                clearBtn.style.display = this.value ? 'block' : 'none';
+            });
+            
+            // Salva o estado antes de fechar a página
+            window.addEventListener('beforeunload', function() {
+                saveCurrentTabState();
+            });
+            
+            // Suporte a teclado no combobox
+            document.getElementById('calculatorPath').addEventListener('keydown', function(e) {
+                const dropdown = document.getElementById('pathsDropdown');
+                if (dropdown.style.display === 'block') {
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
+                        e.preventDefault();
+                        handleKeyboardNavigation(e);
+                    }
+                }
+            });
+        });
+
+        function loadExample() {
+            document.getElementById('jsonInput').value = JSON.stringify(exampleJSON, null, 2);
+            currentRootPrefix = 'JSON';
+            document.getElementById('rootPrefix').value = '';
+            document.getElementById('rootPrefix').placeholder = 'JSON';
+            updateTreeView();
+            updateStatus('Exemplo carregado');
+            saveCurrentTabState();
+        }
+
+        function formatJSON() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value;
+                if (!jsonText.trim()) return;
+                
+                const parsed = JSON.parse(jsonText);
+                document.getElementById('jsonInput').value = JSON.stringify(parsed, null, 2);
+                updateTreeView();
+                updateStatus('JSON formatado');
+                saveCurrentTabState();
+            } catch (e) {
+                updateStatus('Erro ao formatar: ' + e.message);
+            }
+        }
+
+        function compressJSON() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value;
+                if (!jsonText.trim()) return;
+                
+                const parsed = JSON.parse(jsonText);
+                document.getElementById('jsonInput').value = JSON.stringify(parsed);
+                updateTreeView();
+                updateStatus('JSON comprimido');
+                saveCurrentTabState();
+            } catch (e) {
+                updateStatus('Erro ao comprimir: ' + e.message);
+            }
+        }
+
+        function updateTreeView() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value;
+                if (!jsonText.trim()) {
+                    document.getElementById('treeviewContainer').innerHTML = '<div style="color: var(--text-light);">Cole um JSON para visualizar</div>';
+                    return;
+                }
+                
+                currentJSON = JSON.parse(jsonText);
+                const rootPrefix = getRootPrefix();
+                const treeview = createTreeView(currentJSON, rootPrefix, true); // Primeiro nó expandido
+                
+                document.getElementById('treeviewContainer').innerHTML = treeview;
+                document.getElementById('jsonStatus').textContent = 'Válido';
+                document.getElementById('jsonStatus').className = 'badge badge-primary';
+                document.getElementById('jsonStatus').style.background = 'rgba(139, 92, 246, 0.2)';
+                document.getElementById('jsonStatus').style.color = 'var(--primary)';
+                
+                updateNodeCount();
+                updateStatus('TreeView atualizado');
+                
+                // Adicionar event listeners para copiar valores
+                setupValueCopyListeners();
+                
+            } catch (e) {
+                document.getElementById('treeviewContainer').innerHTML = `<div style="color: var(--accent-orange);">Erro no JSON: ${e.message}</div>`;
+                document.getElementById('jsonStatus').textContent = 'Inválido';
+                document.getElementById('jsonStatus').className = 'badge';
+                document.getElementById('jsonStatus').style.background = 'rgba(249, 115, 22, 0.2)';
+                document.getElementById('jsonStatus').style.color = 'var(--accent-orange)';
+                updateStatus('Erro no JSON: ' + e.message);
+            }
+        }
+
+        function createTreeView(data, key, isExpanded = false, depth = 0) {
+            if (data === null) {
+                return `
+                    <div class="node">
+                        <span class="node-key">${key}:</span>
+                        <span class="node-value null" data-value="null">null</span>
+                    </div>
+                `;
+            }
+            
+            const type = typeof data;
+            const isArray = Array.isArray(data);
+            const isObject = type === 'object' && !isArray;
+            const isPrimitiveArray = isArray && data.length > 0 && data.every(item => 
+                item === null || typeof item !== 'object'
+            );
+            
+            // Converte o valor para string mantendo as tags se for XML
+            const stringValue = typeof data === 'string' ? data : String(data);
+            const isXML = /<[^>]+>/.test(stringValue);
+            const displayValue = formatValue(data);
+            
+            if (!isObject && !isArray) {
+                // Valor primitivo
+                const valueClass = type === 'string' ? 'string' : 
+                                 type === 'number' ? 'number' : 
+                                 type === 'boolean' ? 'boolean' : 'null';
+                
+                // OU data-original (se for XML) OU data-value (se não for XML)
+                const dataAttr = isXML 
+                    ? `data-original="${stringValue.replace(/"/g, '&quot;')}"`
+                    : `data-value=${displayValue}`;
+                
+                return `
+                    <div class="node">
+                        <span class="node-key">${key}:</span>
+                        <span class="node-value ${valueClass}" 
+                              ${dataAttr}>${displayValue}</span>
+                    </div>
+                `;
+            }
+            
+            // Objeto ou Array
+            const children = isArray ? data : Object.entries(data);
+            const itemCount = isArray ? data.length : Object.keys(data).length;
+            const typeSymbol = isArray ? `[${itemCount}]` : `{${itemCount}}`;
+            
+            let html = `
+                <div class="node">
+                    <div class="node-header ${isExpanded ? 'expanded' : ''}" onclick="toggleNode(this)">
+                        <div class="node-icon">${isExpanded ? '−' : '+'}</div>
+                        <span class="node-key">${key}: </span>
+                        <span class="node-type">${typeSymbol}</span>
+                    </div>
+                    <div class="node-children" style="${isExpanded ? '' : 'display: none;'}">
+            `;
+            
+            if (isArray) {
+                if (isPrimitiveArray) {
+                    // Array de tipos primitivos - mostra valores na mesma linha
+                    children.forEach((item, index) => {
+                        const valueClass = item === null ? 'null' : 
+                                         typeof item === 'string' ? 'string' : 
+                                         typeof item === 'number' ? 'number' : 
+                                         typeof item === 'boolean' ? 'boolean' : 'null';
+                        
+                        const itemStringValue = typeof item === 'string' ? item : String(item);
+                        const isItemXML = /<[^>]+>/.test(itemStringValue);
+                        const displayValue = formatValue(item);
+                        
+                        // OU data-original (se for XML) OU data-value (se não for XML)
+                        const dataAttr = isItemXML 
+                            ? `data-original="${itemStringValue.replace(/"/g, '&quot;')}"`
+                            : `data-value=${displayValue}`;
+                        
+                        html += `
+                            <div class="node array-item">
+                                <span class="array-value">
+                                    <span class="node-value ${valueClass}" 
+                                          ${dataAttr}>${displayValue}</span>
+                                </span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    // Array de objetos - mostra cada item como um nó expandível
+                    children.forEach((item, index) => {
+                        html += `
+                            <div class="node array-item">
+                                <div class="array-value">
+                                    ${createTreeView(item, index, false, depth + 1)}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } else {
+                // Objeto normal
+                children.forEach(([childKey, childValue]) => {
+                    html += createTreeView(childValue, childKey, false, depth + 1);
+                });
+            }
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function setupValueCopyListeners() {
+            const valueElements = document.querySelectorAll('.node-value');
+            
+            valueElements.forEach(element => {
+                element.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Prioriza data-original, depois data-value, depois textContent
+                    const value = this.getAttribute('data-original') || 
+                                 this.getAttribute('data-value') || 
+                                 this.textContent;
+                    copyToClipboard(value);
+                });
+            });
+        }
+
+        function copyToClipboard(text) {
+            // Remove escapes comuns que podem atrapalhar
+            let cleanText = text.replace(/\\"/g, '"')
+                               .replace(/\\n/g, '\n')
+                               .replace(/\\t/g, '\t')
+                               .replace(/\\\//g, '/');
+            
+            navigator.clipboard.writeText(cleanText).then(() => {
+                updateStatus('Conteúdo copiado para a área de transferência');
+            }).catch(err => {
+                console.error('Erro ao copiar: ', err);
+                // Fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = cleanText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                updateStatus('Conteúdo copiado para a área de transferência');
+            });
+        }
+
+        function formatValue(value) {
+            if (value === null) return 'null';
+            if (typeof value === 'string') return `"${value}"`;
+            if (typeof value === 'number') return value.toString();
+            if (typeof value === 'boolean') return value.toString();
+            return String(value);
+        }
+
+        function toggleNode(header) {
+            const children = header.nextElementSibling;
+            const icon = header.querySelector('.node-icon');
+            
+            if (children.style.display === 'none') {
+                children.style.display = 'block';
+                icon.textContent = '−';
+                header.classList.add('expanded');
+            } else {
+                children.style.display = 'none';
+                icon.textContent = '+';
+                header.classList.remove('expanded');
+            }
+        }
+
+        function expandAll() {
+            const headers = document.querySelectorAll('.node-header');
+            headers.forEach(header => {
+                const children = header.nextElementSibling;
+                const icon = header.querySelector('.node-icon');
+                children.style.display = 'block';
+                icon.textContent = '−';
+                header.classList.add('expanded');
+            });
+            updateStatus('Todos os nós expandidos');
+        }
+
+        function collapseAll() {
+            const headers = document.querySelectorAll('.node-header');
+            headers.forEach(header => {
+                const children = header.nextElementSibling;
+                const icon = header.querySelector('.node-icon');
+                children.style.display = 'none';
+                icon.textContent = '+';
+                header.classList.remove('expanded');
+            });
+            updateStatus('Todos os nós colapsados');
+        }
+
+        function updateNodeCount() {
+            const nodes = document.querySelectorAll('.node');
+            const depth = Math.max(0, ...Array.from(nodes).map(node => {
+                let depth = 0;
+                let parent = node.parentElement;
+                while (parent && parent.classList.contains('node-children')) {
+                    depth++;
+                    parent = parent.parentElement?.closest('.node-children');
+                }
+                return depth;
+            }));
+            
+            document.getElementById('nodesCount').textContent = `${nodes.length} nós`;
+            document.getElementById('treeInfo').textContent = `Profundidade: ${depth} | Nós: ${nodes.length}`;
+        }
+
+        function copiarJSON() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value;
+                if (!jsonText.trim()) return;
+                
+                navigator.clipboard.writeText(jsonText).then(() => {
+                    updateStatus('JSON copiado para a área de transferência');
+                }).catch(err => {
+                    console.error('Erro ao copiar: ', err);
+                    updateStatus('Erro ao copiar JSON');
+                });
+            } catch (e) {
+                updateStatus('Erro ao copiar: ' + e.message);
+            }
+        }
+
+        function clearAll() {
+            document.getElementById('jsonInput').value = '';
+            document.getElementById('treeviewContainer').innerHTML = '<div style="color: var(--text-light);">Cole um JSON para visualizar</div>';
+            document.getElementById('jsonStatus').textContent = 'Válido';
+            document.getElementById('jsonStatus').className = 'badge badge-primary';
+            document.getElementById('jsonStatus').style.background = 'rgba(139, 92, 246, 0.2)';
+            document.getElementById('jsonStatus').style.color = 'var(--primary)';
+            document.getElementById('nodesCount').textContent = '0 nós';
+            document.getElementById('treeInfo').textContent = 'Profundidade: 0 | Nós: 0';
+            currentRootPrefix = 'JSON';
+            document.getElementById('rootPrefix').value = '';
+            document.getElementById('rootPrefix').placeholder = 'JSON';
+            clearSearch();
+            updateStatus('Limpo');
+            saveCurrentTabState();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('clearSearchBtn').style.display = 'none';
+            document.getElementById('searchResults').classList.add('hidden');
+            
+            // Remove highlights
+            const highlights = document.querySelectorAll('.highlight');
+            highlights.forEach(el => el.classList.remove('highlight'));
+            
+            searchResults = [];
+            currentSearchIndex = -1;
+        }
+
+        function performSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            if (!query) return;
+            
+            expandAll();
+            searchResults = [];
+            currentSearchIndex = -1;
+            
+            // Remove highlights anteriores
+            const highlights = document.querySelectorAll('.highlight');
+            highlights.forEach(el => el.classList.remove('highlight'));
+            
+            const nodes = document.querySelectorAll('.node-key, .node-value, .node-type, .array-index');
+            nodes.forEach((node) => {
+                const text = node.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    searchResults.push(node);
+                }
+            });
+            
+            const resultsContainer = document.getElementById('searchResults');
+            const resultsText = document.getElementById('searchResultsText');
+            const positionText = document.getElementById('searchPosition');
+            
+            if (searchResults.length > 0) {
+                resultsContainer.classList.remove('hidden');
+                resultsText.textContent = `${searchResults.length} resultado(s) encontrado(s)`;
+                highlightNextResult();
+            } else {
+                resultsContainer.classList.remove('hidden');
+                resultsText.textContent = 'Nenhum resultado encontrado';
+                positionText.textContent = '0/0';
+            }
+        }
+
+        function highlightNextResult() {
+            if (searchResults.length === 0) return;
+            
+            // Remove highlight anterior
+            if (currentSearchIndex >= 0) {
+                searchResults[currentSearchIndex].classList.remove('highlight');
+            }
+            
+            currentSearchIndex = (currentSearchIndex + 1) % searchResults.length;
+            const currentNode = searchResults[currentSearchIndex];
+            
+            // Aplica highlight
+            currentNode.classList.add('highlight');
+            
+            // Scroll para o elemento
+            currentNode.scrollIntoView({ behavior: 'instant', block: 'center' });
+            
+            // Expande pais se necessário
+            let parent = currentNode.closest('.node-children');
+            while (parent) {
+                const header = parent.previousElementSibling;
+                if (header && header.classList.contains('node-header')) {
+                    if (parent.style.display === 'none') {
+                        toggleNode(header);
+                    }
+                }
+                parent = parent.parentElement?.closest('.node-children');
+            }
+            
+            document.getElementById('searchPosition').textContent = `${currentSearchIndex + 1}/${searchResults.length}`;
+        }
+
+        function previousResult() {
+            if (searchResults.length === 0) return;
+            
+            expandAll();
+            
+            // Remove highlight atual
+            searchResults[currentSearchIndex].classList.remove('highlight');
+            
+            // Vai para o resultado anterior
+            currentSearchIndex = (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+            const currentNode = searchResults[currentSearchIndex];
+            
+            // Aplica highlight
+            currentNode.classList.add('highlight');
+            
+            // Scroll para o elemento
+            currentNode.scrollIntoView({ behavior: 'instant', block: 'center' });
+            
+            // Expande pais se necessário
+            let parent = currentNode.closest('.node-children');
+            while (parent) {
+                const header = parent.previousElementSibling;
+                if (header && header.classList.contains('node-header')) {
+                    if (parent.style.display === 'none') {
+                        toggleNode(header);
+                    }
+                }
+                parent = parent.parentElement?.closest('.node-children');
+            }
+            
+            document.getElementById('searchPosition').textContent = `${currentSearchIndex + 1}/${searchResults.length}`;
+        }
+
+        function nextResult() {
+            expandAll();
+            highlightNextResult();
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusText').textContent = message;
+        }
+
+        // Funções para exportação do TreeView
+        function exportTreeView() {
+            if (!currentJSON) {
+                updateStatus('Nenhum JSON carregado para exportar');
+                return;
+            }
+            
+            const rootPrefix = getRootPrefix();
+            const exportText = generateTreeViewText(currentJSON, rootPrefix);
+            document.getElementById('exportText').value = exportText;
+            document.getElementById('exportModal').style.display = 'flex';
+            updateStatus('TreeView exportado para texto');
+        }
+
+        function generateTreeViewText(data, key, depth = 0) {
+            const indent = '  '.repeat(depth);
+            let result = '';
+            
+            if (data === null) {
+                return `${indent}${key}: null\n`;
+            }
+            
+            const type = typeof data;
+            const isArray = Array.isArray(data);
+            const isObject = type === 'object' && !isArray;
+            
+            if (!isObject && !isArray) {
+                // Valor primitivo
+                return `${indent}${key}: ${formatValue(data)}\n`;
+            }
+            
+            // Objeto ou Array
+            const children = isArray ? data : Object.entries(data);
+            const itemCount = isArray ? data.length : Object.keys(data).length;
+            const typeSymbol = isArray ? `[${itemCount}]` : `{${itemCount}}`;
+            
+            result += `${indent}${key} ${typeSymbol}\n`;
+            
+            if (isArray) {
+                children.forEach((item, index) => {
+                    if (item === null || typeof item !== 'object') {
+                        // Item primitivo
+                        result += `${indent}  [${index}]: ${formatValue(item)}\n`;
+                    } else {
+                        // Item complexo
+                        result += `${indent}  [${index}]:\n`;
+                        result += generateTreeViewText(item, '', depth + 2);
+                    }
+                });
+            } else {
+                // Objeto normal
+                children.forEach(([childKey, childValue]) => {
+                    result += generateTreeViewText(childValue, childKey, depth + 1);
+                });
+            }
+            
+            return result;
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        function copyExportText() {
+            const exportText = document.getElementById('exportText');
+            exportText.select();
+            document.execCommand('copy');
+            updateStatus('Texto copiado para a área de transferência');
+            
+            // Feedback visual
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Copiado!';
+            btn.style.background = 'var(--success)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 2000);
+        }
+
+        function downloadExportText() {
+            const exportText = document.getElementById('exportText').value;
+            const blob = new Blob([exportText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'treeview_export.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            updateStatus('Arquivo baixado com sucesso');
+        }
+        
+        // Variável para armazenar o JSON original
+        let currentJSONForStringify = null;
+
+        // Função para stringficar JSON (modificada)
+        function stringifyJSON() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value;
+                if (!jsonText.trim()) {
+                    updateStatus('Nenhum JSON para stringficar');
+                    return;
+                }
+                
+                currentJSONForStringify = JSON.parse(jsonText);
+                updateStringifiedText();
+                document.getElementById('stringifyModal').style.display = 'flex';
+                updateStatus('JSON stringficado com sucesso');
+                
+            } catch (e) {
+                updateStatus('Erro ao stringficar: ' + e.message);
+            }
+        }
+
+        // Função para atualizar o texto stringficado em tempo real
+        function updateStringifiedText() {
+            if (!currentJSONForStringify) return;
+            
+            if (typeof currentJSONForStringify === 'string') return;
+            
+            try {                
+                let stringified = JSON.stringify(currentJSONForStringify);
+                
+                // Escapa aspas duplas para uso em strings JavaScript/JSON
+                stringified = stringified.replace(/"/g, '\\"');
+                
+                document.getElementById('stringifiedText').value = '"' + stringified + '"';
+                
+                // Atualiza o status
+                const statusElement = document.getElementById('stringifyStatus');
+                const charCount = stringified.length;
+                const lineCount = stringified.split('\n').length;
+                
+                statusElement.textContent = `${charCount} caracteres, ${lineCount} linhas`;
+                statusElement.style.color = 'var(--accent-blue)';
+                
+            } catch (e) {
+                document.getElementById('stringifyStatus').textContent = 'Erro ao atualizar: ' + e.message;
+                document.getElementById('stringifyStatus').style.color = 'var(--accent-orange)';
+            }
+        }
+
+        // Função para fazer parse de JSON stringficado (mantém igual)
+        function parseStringifiedJSON() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value.trim();
+                if (!jsonText) {
+                    updateStatus('Nenhum texto para fazer parse');
+                    return;
+                }
+                
+                // Tenta detectar e remover escapes de aspas
+                let processedText = jsonText;
+                
+                // Remove escapes de aspas se existirem
+                if (jsonText.includes('\\"')) {
+                    processedText = jsonText.replace(/\\"/g, '"');
+                }
+                
+                // Remove aspas externas se for uma string JSON
+                if (processedText.startsWith('"') && processedText.endsWith('"')) {
+                    processedText = processedText.slice(1, -1);
+                }
+                
+                // Tenta fazer parse do JSON
+                const parsed = JSON.parse(processedText);
+                
+                // Atualiza o input com o JSON formatado
+                document.getElementById('jsonInput').value = JSON.stringify(parsed, null, 2);
+                updateTreeView();
+                updateStatus('JSON stringficado convertido com sucesso');
+                
+            } catch (e) {
+                updateStatus('Erro ao fazer parse do stringficado: ' + e.message);
+            }
+        }
+
+        // Funções auxiliares para o modal de stringficação (mantém iguais)
+        function closeStringifyModal() {
+            document.getElementById('stringifyModal').style.display = 'none';
+            currentJSONForStringify = null; // Limpa o cache
+        }
+
+        function copyStringifiedText() {
+            const stringifiedText = document.getElementById('stringifiedText');
+            stringifiedText.select();
+            document.execCommand('copy');
+            updateStatus('Texto stringficado copiado para a área de transferência');
+            
+            // Feedback visual
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Copiado!';
+            btn.style.background = 'var(--success)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 2000);
+        }
+
+        function useStringifiedInInput() {
+            const stringifiedText = document.getElementById('stringifiedText').value;
+            document.getElementById('jsonInput').value = stringifiedText;
+            closeStringifyModal();
+            updateTreeView();
+            updateStatus('Texto stringficado colocado no input');
+        }
+        
+        // ========== FUNÇÕES PARA EXTRAIR PATHS ==========
+        let extractedPaths = [];
+        let originalPathsOrder = [];
+        let sortAlphabetically = false;
+
+        function extractPaths() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value;
+                if (!jsonText.trim()) {
+                    updateStatus('Nenhum JSON para extrair paths');
+                    return;
+                }
+                
+                const parsed = JSON.parse(jsonText);
+                extractedPaths = [];
+                
+                // Extrair todos os paths
+                const rootPrefix = getRootPrefix();
+                extractPathsRecursive(parsed, rootPrefix);
+                
+                // Salvar ordem original e remover duplicatas
+                originalPathsOrder = [...new Set(extractedPaths)];
+                
+                // Resetar checkbox para desabilitado (padrão)
+                document.getElementById('sortPaths').checked = false;
+                sortAlphabetically = false;
+                
+                // Exibir no modal (ordem original)
+                displayPaths(originalPathsOrder);
+                
+                document.getElementById('pathsModal').style.display = 'flex';
+                updateStatus(`${originalPathsOrder.length} paths extraídos`);
+                
+            } catch (e) {
+                updateStatus('Erro ao extrair paths: ' + e.message);
+            }
+        }
+
+        function extractPathsRecursive(obj, currentPath) {
+            if (obj === null || typeof obj !== 'object') {
+                // Valor primitivo - adicionar path
+                extractedPaths.push(currentPath);
+                return;
+            }
+            
+            if (Array.isArray(obj)) {
+                // Array - para cada item, extrair paths sem índices
+                if (obj.length > 0) {
+                    const firstItem = obj[0];
+                    if (typeof firstItem === 'object' && firstItem !== null) {
+                        // Array de objetos - extrair paths dos campos do primeiro objeto
+                        Object.keys(firstItem).forEach(key => {
+                            extractPathsRecursive(firstItem[key], `${currentPath}.${key}`);
+                        });
+                    } else {
+                        // Array de primitivos - adicionar path do array
+                        extractedPaths.push(currentPath);
+                    }
+                }
+            } else {
+                // Objeto - extrair paths de todas as propriedades
+                Object.keys(obj).forEach(key => {
+                    extractPathsRecursive(obj[key], `${currentPath}.${key}`);
+                });
+            }
+        }
+
+        function displayPaths(paths) {
+            const pathsList = document.getElementById('pathsList');
+            const pathsCount = document.getElementById('pathsCount');
+            
+            pathsCount.textContent = `${paths.length} paths encontrados`;
+            
+            if (paths.length === 0) {
+                pathsList.innerHTML = '<div style="color: var(--text-light); text-align: center; padding: 2rem;">Nenhum path encontrado</div>';
+                return;
+            }
+            
+            pathsList.innerHTML = paths.map(path => 
+                `<div style="padding: 0.25rem 0.5rem; margin: 0.125rem 0; border-radius: 4px; cursor: pointer; transition: background-color 0.2s;" 
+                      onmouseover="this.style.background='var(--surface-light)'" 
+                      onmouseout="this.style.background='transparent'"
+                      onclick="copyPath('${path}')">${path}</div>`
+            ).join('');
+        }
+
+        function copyPath(path) {
+            navigator.clipboard.writeText(path).then(() => {
+                updateStatus('Path copiado para a área de transferência');
+            });
+        }
+
+        function copyAllPaths() {
+            let pathsToCopy;
+            
+            if (sortAlphabetically) {
+                // Ordem alfabética
+                pathsToCopy = [...originalPathsOrder].sort().join('\n');
+            } else {
+                // Ordem original
+                pathsToCopy = originalPathsOrder.join('\n');
+            }
+            
+            navigator.clipboard.writeText(pathsToCopy).then(() => {
+                updateStatus('Todos os paths copiados para a área de transferência');
+            });
+        }
+
+        function downloadPaths() {
+            let pathsToDownload;
+            
+            if (sortAlphabetically) {
+                // Ordem alfabética
+                pathsToDownload = [...originalPathsOrder].sort().join('\n');
+            } else {
+                // Ordem original
+                pathsToDownload = originalPathsOrder.join('\n');
+            }
+            
+            const blob = new Blob([pathsToDownload], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'json_paths.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            updateStatus('Paths baixados como arquivo');
+        }
+
+        function closePathsModal() {
+            document.getElementById('pathsModal').style.display = 'none';
+        } 
+        
+        function toggleSortPaths() {
+            sortAlphabetically = document.getElementById('sortPaths').checked;
+            
+            if (sortAlphabetically) {
+                // Ordem alfabética
+                const sortedPaths = [...originalPathsOrder].sort();
+                displayPaths(sortedPaths);
+            } else {
+                // Ordem original
+                displayPaths(originalPathsOrder);
+            }
+        }
+        
+        // Variável para armazenar o prefixo raiz atual
+        let currentRootPrefix = 'JSON';
+
+        // Função para validar o campo (não permite espaços)
+        function validateRootPrefix(input) {
+            const originalValue = input.value;
+            // Remove espaços de qualquer tipo
+            const cleanedValue = originalValue.replace(/\s/g, '');
+            
+            if (originalValue !== cleanedValue) {
+                input.value = cleanedValue;
+                updateStatus('Espaços não são permitidos no prefixo raiz');
+            }
+        }
+
+        // Função para aplicar o prefixo raiz
+        function applyRootPrefix() {
+            const prefixInput = document.getElementById('rootPrefix');
+            const newPrefix = prefixInput.value.trim();
+            
+            if (newPrefix === '') {
+                // Se estiver vazio, mantém o padrão "JSON"
+                currentRootPrefix = 'JSON';
+                prefixInput.value = '';
+                prefixInput.placeholder = 'JSON';
+            } else {
+                // Usa o prefixo customizado
+                currentRootPrefix = newPrefix;
+            }
+            
+            // Atualiza a TreeView se houver JSON carregado
+            if (document.getElementById('jsonInput').value.trim()) {
+                updateTreeView();
+            }
+            
+            updateStatus(`Prefixo raiz definido como: ${currentRootPrefix}`);
+            saveCurrentTabState();
+        }
+
+        // Função auxiliar para obter o prefixo raiz atual
+        function getRootPrefix() {
+            return currentRootPrefix || 'JSON';
+        }
+        
+        function clearAllTabs() {
+            if (confirm('Tem certeza que deseja limpar todas as abas? Todos os JSONs serão perdidos.')) {
+                // Reseta as variáveis
+                tabs = [];
+                activeTabId = null;
+                tabCounter = 0;
+                
+                // Limpa o localStorage
+                localStorage.removeItem('json_viewer_tabs');
+                localStorage.removeItem('json_viewer_active_tab');
+                
+                // Cria uma nova aba vazia
+                addNewTab();
+                
+                updateStatus('Todas as abas foram limpas');
+            }
+        }
+        
+        // Função para fechar aba com clique da rodinha
+        function setupMiddleClickClose() {
+            document.getElementById('tabList').addEventListener('mousedown', function(e) {
+                // Verifica se foi clique do botão do meio (rodinha)
+                if (e.button === 1) {
+                    e.preventDefault();
+                    
+                    // Ctrl + Rodinha = Adicionar nova aba
+                    if (e.ctrlKey) {
+                        addNewTab();
+                        return;
+                    }
+                    
+                    // Rodinha sem Ctrl = Fechar aba
+                    const tabElement = e.target.closest('.tab');
+                    if (tabElement && !tabElement.classList.contains('add-tab-btn')) {
+                        const tabId = tabElement.getAttribute('data-tab-id');
+                        if (tabId) {
+                            removeTab(tabId);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Adicione esta função após a função setupMiddleClickClose()
+        function setupGlobalShortcuts() {
+            document.addEventListener('mousedown', function(e) {
+                // Ctrl + Clique com Rodinha em qualquer lugar = Nova aba
+                if (e.button === 1 && e.ctrlKey) {
+                    e.preventDefault();
+                    addNewTab();
+                }
+            });
+        }
+        
+        // Funções da Calculadora
+        function openCalculator() {
+            if (!currentJSON) {
+                updateStatus('Carregue um JSON primeiro');
+                return;
+            }
+            document.getElementById('calculatorModal').style.display = 'flex';
+            document.getElementById('calculatorPath').value = '';
+            document.getElementById('calculatorResults').innerHTML = '<div style="color: var(--text-light); text-align: center;">Os resultados aparecerão aqui...</div>';
+            document.getElementById('pathsDropdown').style.display = 'none'; // Esconde dropdown ao abrir
+            
+            // Carrega os paths automaticamente se já tiver JSON
+            loadAllPaths();
+        }
+
+        function closeCalculator() {
+            document.getElementById('calculatorModal').style.display = 'none';
+        }
+
+        function calculateCount() {
+            const path = document.getElementById('calculatorPath').value.trim();
+            if (!path) {
+                showCalculatorError('Digite um path para contar');
+                return;
+            }
+            
+            const values = getValuesByPath(currentJSON, path);
+            
+            document.getElementById('calculatorResults').innerHTML = `
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.875rem; color: var(--text-light);">Path: <strong>${path}</strong></div>
+                </div>
+                <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-blue); text-align: center;">
+                    Ocorrências: ${values.length}
+                </div>
+                <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-light);">
+                    Tipos encontrados: ${[...new Set(values.map(v => typeof v))].join(', ')}
+                </div>
+            `;
+            
+            updateStatus(`Contagem: ${values.length} ocorrências`);
+        }
+
+        function calculateStats() {
+            const path = document.getElementById('calculatorPath').value.trim();
+            if (!path) {
+                showCalculatorError('Digite um path para analisar');
+                return;
+            }
+            
+            const values = getValuesByPath(currentJSON, path);
+            const numericValues = values.filter(v => typeof v === 'number');
+            
+            if (numericValues.length === 0) {
+                showCalculatorError('Nenhum valor numérico encontrado para este path');
+                return;
+            }
+            
+            const sum = numericValues.reduce((acc, val) => acc + val, 0);
+            const avg = sum / numericValues.length;
+            const min = Math.min(...numericValues);
+            const max = Math.max(...numericValues);
+            
+            document.getElementById('calculatorResults').innerHTML = `
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.875rem; color: var(--text-light);">Path: <strong>${path}</strong></div>
+                    <div style="font-size: 0.875rem; color: var(--text-light);">Valores numéricos: ${numericValues.length}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Soma</div>
+                        <div style="font-size: 1.25rem; font-weight: bold; color: var(--success);">${sum.toFixed(2)}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Média</div>
+                        <div style="font-size: 1.25rem; font-weight: bold; color: var(--accent-blue);">${avg.toFixed(2)}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Mínimo</div>
+                        <div style="font-size: 1.25rem; font-weight: bold; color: var(--accent-orange);">${min.toFixed(2)}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.875rem; color: var(--text-light);">Máximo</div>
+                        <div style="font-size: 1.25rem; font-weight: bold; color: var(--accent-orange);">${max.toFixed(2)}</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-light);">
+                    Valores: [${numericValues.join(', ')}]
+                </div>
+            `;
+            
+            updateStatus(`Estatísticas calculadas para ${numericValues.length} valores`);
+        }
+
+        function getValuesByPath(obj, path) {
+            const keys = path.split('.');
+            const results = [];
+            
+            // Remove o prefixo raiz se estiver presente no início do path
+            const rootPrefix = getRootPrefix();
+            if (keys[0] === rootPrefix) {
+                keys.shift(); // Remove o primeiro elemento (prefixo raiz)
+            }
+            
+            function traverse(currentObj, currentKeys, index) {
+                if (index === currentKeys.length) {
+                    // Chegamos ao final do path, adiciona o valor
+                    if (currentObj !== undefined && currentObj !== null) {
+                        results.push(currentObj);
+                    }
+                    return;
+                }
+                
+                const key = currentKeys[index];
+                
+                if (Array.isArray(currentObj)) {
+                    // Se é array, percorre todos os itens
+                    currentObj.forEach(item => {
+                        if (item && typeof item === 'object') {
+                            traverse(item[key], currentKeys, index + 1);
+                        }
+                    });
+                } else if (currentObj && typeof currentObj === 'object' && key in currentObj) {
+                    // Se é objeto, continua navegando
+                    traverse(currentObj[key], currentKeys, index + 1);
+                }
+            }
+            
+            // Se não há mais keys após remover o prefixo, retorna o objeto inteiro
+            if (keys.length === 0) {
+                results.push(obj);
+            } else {
+                traverse(obj, keys, 0);
+            }
+            
+            return results;
+        }
+
+        function showCalculatorError(message) {
+            document.getElementById('calculatorResults').innerHTML = `
+                <div style="color: var(--accent-orange); text-align: center; padding: 1rem;">
+                    ${message}
+                </div>
+            `;
+        }
+        
+        // Variável para armazenar todos os paths disponíveis
+        let allPaths = [];
+
+        // Funções para o combobox com autocomplete
+        function loadAllPaths() {
+            if (!currentJSON) {
+                showCalculatorError('Carregue um JSON primeiro');
+                return;
+            }
+            
+            try {
+                // Limpa a lista anterior para forçar recarregamento
+                allPaths = [];
+                extractedPaths = [];
+                
+                // Extrai todos os paths com o prefixo atual
+                const rootPrefix = getRootPrefix();
+                extractPathsRecursive(currentJSON, rootPrefix);
+                allPaths = [...new Set(extractedPaths)];
+                
+                // Mostra o dropdown com todos os paths
+                showPathsDropdown();
+                filterPaths();
+                
+                updateStatus(`${allPaths.length} paths carregados com prefixo "${rootPrefix}"`);
+                
+            } catch (e) {
+                showCalculatorError('Erro ao carregar paths: ' + e.message);
+            }
+        }
+
+        function showPathsDropdown() {
+            const dropdown = document.getElementById('pathsDropdown');
+            if (allPaths.length === 0) {
+                loadAllPaths(); // Carrega automaticamente se ainda não tiver paths
+                return;
+            }
+            dropdown.style.display = 'block';
+            filterPaths(); // Filtra com o texto atual
+        }
+
+        function hidePathsDropdown() {
+            // Pequeno delay para permitir clicar nos itens
+            setTimeout(() => {
+                document.getElementById('pathsDropdown').style.display = 'none';
+            }, 200);
+        }
+
+        function filterPaths() {
+            const input = document.getElementById('calculatorPath');
+            const filter = input.value.toLowerCase();
+            const dropdownContent = document.getElementById('pathsDropdownContent');
+            
+            if (allPaths.length === 0) {
+                dropdownContent.innerHTML = '<div style="padding: 0.75rem; color: var(--text-light); text-align: center;">Clique em "Carregar Paths" primeiro</div>';
+                return;
+            }
+            
+            // Filtra os paths
+            const filteredPaths = allPaths.filter(path => 
+                path.toLowerCase().includes(filter)
+            );
+            
+            if (filteredPaths.length === 0) {
+                dropdownContent.innerHTML = '<div style="padding: 0.75rem; color: var(--text-light); text-align: center;">Nenhum path encontrado</div>';
+                return;
+            }
+            
+            let html = '';
+
+            if (filteredPaths.length > 0) {
+                filteredPaths.forEach(path => {
+                    const highlightedPath = highlightMatch(path, filter);
+                    const valueType = getValueTypeByPath(path); // Nova função para detectar o tipo
+                    
+                    html += `
+                        <div class="path-suggestion" 
+                             onclick="selectPath('${path}')"
+                             onmouseover="this.style.background='var(--surface-light)'" 
+                             onmouseout="this.style.background='transparent'">
+                            <div style="padding: 0.75rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 0.8rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                                <div style="color: var(--text); flex: 1; min-width: 0; word-break: break-all; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.75rem;">
+                                    ${highlightedPath}
+                                </div>
+                                <div style="font-size: 0.7rem; color: ${getTypeColor(valueType)}; padding: 0.25rem 0.5rem; background: ${getTypeBackground(valueType)}; border-radius: 12px; white-space: nowrap; flex-shrink: 0;">
+                                    ${valueType}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            dropdownContent.innerHTML = html;
+        }
+
+        function highlightMatch(text, filter) {
+            if (!filter) return text;
+            
+            const regex = new RegExp(`(${filter})`, 'gi');
+            return text.replace(regex, '<mark style="background: rgba(249, 115, 22, 0.3); color: inherit; padding: 0.125rem 0.25rem; border-radius: 2px;">$1</mark>');
+        }
+
+        function selectPath(path) {
+            document.getElementById('calculatorPath').value = path;
+            hidePathsDropdown();
+            
+            // Foca no input e seleciona o texto
+            const input = document.getElementById('calculatorPath');
+            input.focus();
+            input.select();
+            
+            updateStatus(`Path selecionado: ${path}`);
+        }
+        
+        let selectedSuggestionIndex = -1;
+
+        function handleKeyboardNavigation(e) {
+            const suggestions = document.querySelectorAll('.path-suggestion');
+            
+            if (e.key === 'ArrowDown') {
+                selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, suggestions.length - 1);
+            } else if (e.key === 'ArrowUp') {
+                selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+            } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+                const path = suggestions[selectedSuggestionIndex].getAttribute('onclick').match(/'([^']+)'/)[1];
+                selectPath(path);
+                return;
+            }
+            
+            // Atualiza highlight
+            suggestions.forEach((suggestion, index) => {
+                if (index === selectedSuggestionIndex) {
+                    suggestion.style.background = 'var(--primary)';
+                    suggestion.style.color = 'white';
+                } else {
+                    suggestion.style.background = 'transparent';
+                    suggestion.style.color = '';
+                }
+            });
+        }
+        
+        function getValueTypeByPath(path) {
+            try {
+                const values = getValuesByPath(currentJSON, path);
+                if (values.length === 0) return 'vazio';
+                
+                const firstValue = values[0];
+                
+                if (typeof firstValue === 'number') return 'número';
+                if (typeof firstValue === 'string') return 'texto';
+                if (typeof firstValue === 'boolean') return 'booleano';
+                if (firstValue === null) return 'nulo';
+                if (Array.isArray(firstValue)) return `array[${firstValue.length}]`;
+                if (typeof firstValue === 'object') return 'objeto';
+                
+                return typeof firstValue;
+            } catch (e) {
+                return 'desconhecido';
+            }
+        }
+
+        function getTypeColor(type) {
+            const colors = {
+                'número': 'var(--success)',
+                'texto': 'var(--accent-blue)',
+                'booleano': 'var(--accent-orange)',
+                'nulo': 'var(--text-light)',
+                'array': 'var(--primary)',
+                'objeto': 'var(--secondary)',
+                'vazio': 'var(--text-light)',
+                'desconhecido': 'var(--text-light)'
+            };
+            return colors[type] || 'var(--text-light)';
+        }
+
+        function getTypeBackground(type) {
+            const backgrounds = {
+                'número': 'rgba(16, 185, 129, 0.1)',
+                'texto': 'rgba(59, 130, 246, 0.1)',
+                'booleano': 'rgba(249, 115, 22, 0.1)',
+                'nulo': 'rgba(203, 213, 225, 0.1)',
+                'array': 'rgba(139, 92, 246, 0.1)',
+                'objeto': 'rgba(167, 139, 250, 0.1)',
+                'vazio': 'rgba(203, 213, 225, 0.1)',
+                'desconhecido': 'rgba(203, 213, 225, 0.1)'
+            };
+            return backgrounds[type] || 'rgba(203, 213, 225, 0.1)';
+        }
+
+    </script>
+</body>
+</html>
