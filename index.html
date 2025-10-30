@@ -2211,7 +2211,15 @@
             
             const values = getValuesByPath(currentJSON, path);
             
-            document.getElementById('calculatorResults').innerHTML = `
+            // Determina se há valores numéricos para mostrar a lista completa
+            const hasNumericValues = values.some(v => typeof v === 'number');
+            const allValuesString = values.map(v => 
+                v === null ? 'null' : 
+                typeof v === 'string' ? `"${v}"` : 
+                String(v)
+            ).join(', ');
+            
+            let resultsHTML = `
                 <div style="margin-bottom: 1rem;">
                     <div style="font-size: 0.875rem; color: var(--text-light);">Path: <strong>${path}</strong></div>
                 </div>
@@ -2222,6 +2230,17 @@
                     Tipos encontrados: ${[...new Set(values.map(v => typeof v))].join(', ')}
                 </div>
             `;
+            
+            // Adiciona a lista de valores, igual na função de estatísticas completas
+            if (values.length > 0) {
+                resultsHTML += `
+                    <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-light);">
+                        Valores: [${allValuesString}]
+                    </div>
+                `;
+            }
+            
+            document.getElementById('calculatorResults').innerHTML = resultsHTML;
             
             updateStatus(`Contagem: ${values.length} ocorrências`);
         }
