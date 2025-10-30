@@ -985,7 +985,6 @@
         // Sistema de abas
         let tabs = [];
         let activeTabId = null;
-        let tabCounter = 0;
         
         let searchBehavior = 'perform'; // 'perform' ou 'clear'
         const SEARCH_BEHAVIOR_KEY = 'json_viewer_search_behavior';
@@ -1038,7 +1037,7 @@
 
         // Adiciona uma nova aba
         function addNewTab() {
-            const newTabId = 'tab_' + Date.now() + '_' + (++tabCounter);
+            const newTabId = 'tab_' + Date.now() + '_' + (tabs.count + 1);
             const newTab = {
                 id: newTabId,
                 name: `JSON ${tabs.length + 1}`,
@@ -2137,7 +2136,6 @@
                 // Reseta as variáveis
                 tabs = [];
                 activeTabId = null;
-                tabCounter = 0;
                 
                 // Limpa o localStorage
                 localStorage.removeItem('json_viewer_tabs');
@@ -2157,9 +2155,8 @@
                 if (e.button === 1) {
                     e.preventDefault();
                     
-                    // Ctrl + Rodinha = Adicionar nova aba
+                    // Ctrl + Rodinha = Não faz nada
                     if (e.ctrlKey) {
-                        addNewTab();
                         return;
                     }
                     
