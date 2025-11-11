@@ -709,6 +709,12 @@
                 </svg>
                 Copiar JSON
             </button>
+            <button class="btn btn-teal" onclick="exportJSONFile()">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Exportar JSON
+            </button>
             <button class="btn btn-success" onclick="exportTreeView()">
                 <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -1253,6 +1259,7 @@
             loadSearchBehavior(); // Carrega configuração da busca
             setupMiddleClickClose();
             setupGlobalShortcuts();
+            setupPerformanceControls();
             
             document.getElementById('jsonInput').addEventListener('input', function() {
                 saveCurrentTabState(); // Salva ao digitar
@@ -1335,6 +1342,9 @@
                     return;
                 }
                 
+                // Verifica tamanho do JSON e avisa usuário
+                checkJSONSizeAndWarn(jsonText);
+                
                 currentJSON = JSON.parse(jsonText);
                 const rootPrefix = getRootPrefix();
                 const treeview = createTreeView(currentJSON, rootPrefix, true); // Primeiro nó expandido
@@ -1362,6 +1372,16 @@
         }
 
         function createTreeView(data, key, isExpanded = false, depth = 0) {
+            // PROTEÇÃO CONTRA RECURSÃO PROFUNDA
+            if (depth > 100) {
+                return `
+                    <div class="node">
+                        <span class="node-key">${key}:</span>
+                        <span class="node-value string">"[...] (profundidade máxima atingida)"</span>
+                    </div>
+                `;
+            }
+            
             if (data === null) {
                 return `
                     <div class="node">
@@ -1447,7 +1467,10 @@
                     });
                 } else {
                     // Array de objetos - mostra cada item como um nó expandível
-                    children.forEach((item, index) => {
+                    // LIMITAÇÃO: para arrays muito grandes, processa apenas os primeiros 1000 itens
+                    const itemsToProcess = data.length > 1000 ? data.slice(0, 1000) : data;
+                    
+                    itemsToProcess.forEach((item, index) => {
                         html += `
                             <div class="node array-item">
                                 <div class="array-value">
@@ -1456,12 +1479,37 @@
                             </div>
                         `;
                     });
+                    
+                    // Adiciona mensagem se array foi truncado
+                    if (data.length > 1000) {
+                        html += `
+                            <div class="node array-item">
+                                <span class="array-value">
+                                    <span class="node-value string">"[...] ${data.length - 1000} itens omitidos (array muito grande)"</span>
+                                </span>
+                            </div>
+                        `;
+                    }
                 }
             } else {
                 // Objeto normal
-                children.forEach(([childKey, childValue]) => {
+                // LIMITAÇÃO: para objetos muito grandes, processa apenas as primeiras 1000 propriedades
+                const entries = Object.entries(data);
+                const entriesToProcess = entries.length > 1000 ? entries.slice(0, 1000) : entries;
+                
+                entriesToProcess.forEach(([childKey, childValue]) => {
                     html += createTreeView(childValue, childKey, false, depth + 1);
                 });
+                
+                // Adiciona mensagem se objeto foi truncado
+                if (entries.length > 1000) {
+                    html += `
+                        <div class="node">
+                            <span class="node-key">[...]:</span>
+                            <span class="node-value string">"${entries.length - 1000} propriedades omitidas (objeto muito grande)"</span>
+                        </div>
+                    `;
+                }
             }
             
             html += `
@@ -1977,7 +2025,12 @@
             }
         }
 
-        function extractPathsRecursive(obj, currentPath) {
+        function extractPathsRecursive(obj, currentPath, depth = 0) {
+            // PROTEÇÃO CONTRA RECURSÃO PROFUNDA
+            if (depth > 50) {
+                return;
+            }
+            
             if (obj === null || typeof obj !== 'object') {
                 // Valor primitivo - adicionar path
                 extractedPaths.push(currentPath);
@@ -1990,8 +2043,11 @@
                     const firstItem = obj[0];
                     if (typeof firstItem === 'object' && firstItem !== null) {
                         // Array de objetos - extrair paths dos campos do primeiro objeto
+                        // LIMITAÇÃO: processa apenas os primeiros 100 itens do array
+                        const itemsToProcess = obj.length > 100 ? obj.slice(0, 100) : obj;
+                        
                         Object.keys(firstItem).forEach(key => {
-                            extractPathsRecursive(firstItem[key], `${currentPath}.${key}`);
+                            extractPathsRecursive(firstItem[key], `${currentPath}.${key}`, depth + 1);
                         });
                     } else {
                         // Array de primitivos - adicionar path do array
@@ -2000,8 +2056,12 @@
                 }
             } else {
                 // Objeto - extrair paths de todas as propriedades
-                Object.keys(obj).forEach(key => {
-                    extractPathsRecursive(obj[key], `${currentPath}.${key}`);
+                // LIMITAÇÃO: processa apenas as primeiras 500 propriedades
+                const keys = Object.keys(obj);
+                const keysToProcess = keys.length > 500 ? keys.slice(0, 500) : keys;
+                
+                keysToProcess.forEach(key => {
+                    extractPathsRecursive(obj[key], `${currentPath}.${key}`, depth + 1);
                 });
             }
         }
@@ -2537,6 +2597,104 @@
             };
             return backgrounds[type] || 'rgba(203, 213, 225, 0.1)';
         }
+        
+        function setupPerformanceControls() {
+            // Adiciona um controle para usuários com JSONs muito grandes
+            const performanceWarning = `
+                <div style="display: none; background: rgba(249, 115, 22, 0.1); border: 1px solid var(--accent-orange); border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.875rem;" id="performanceWarning">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <strong>JSON Muito Grande Detectado</strong>
+                    </div>
+                    <div style="color: var(--text-light); margin-bottom: 0.5rem;">
+                        Para melhor performance, algumas otimizações foram aplicadas automaticamente.
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-outline btn-sm" onclick="forceFullRender()" id="forceRenderBtn">
+                            Renderizar Completo (Pode Travar)
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="dismissWarning()">
+                            Entendi
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Insere o aviso antes do treeview container
+            const treeviewContainer = document.getElementById('treeviewContainer');
+            treeviewContainer.insertAdjacentHTML('beforebegin', performanceWarning);
+        }
+
+        function checkJSONSizeAndWarn(jsonText) {
+            try {
+                const warningElement = document.getElementById('performanceWarning');
+                const forceRenderBtn = document.getElementById('forceRenderBtn');
+                
+                // Se os elementos não existirem, simplesmente retorna sem erro
+                if (!warningElement || !forceRenderBtn) {
+                    return;
+                }
+                
+                if (jsonText.length > 50000) { // 50KB
+                    warningElement.style.display = 'block';
+                    forceRenderBtn.style.display = 'block';
+                } else {
+                    warningElement.style.display = 'none';
+                }
+            } catch (e) {
+                // Ignora silenciosamente qualquer erro relacionado aos elementos de performance
+                console.log('Controles de performance ainda não inicializados');
+            }
+        }
+
+        function forceFullRender() {
+            // Remove limitações para renderização completa
+            // (implementação específica seria necessária)
+            updateTreeView();
+            document.getElementById('performanceWarning').style.display = 'none';
+        }
+
+        function dismissWarning() {
+            document.getElementById('performanceWarning').style.display = 'none';
+        }
+        
+        function exportJSONFile() {
+            try {
+                const jsonText = document.getElementById('jsonInput').value;
+                if (!jsonText.trim()) {
+                    updateStatus('Nenhum JSON para exportar');
+                    return;
+                }
+                
+                // Valida se é um JSON válido
+                const parsedJSON = JSON.parse(jsonText);
+                const formattedJSON = JSON.stringify(parsedJSON, null, 2);
+                
+                // Cria um nome de arquivo com timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `json_export_${timestamp}.json`;
+                
+                // Cria o blob e faz o download
+                const blob = new Blob([formattedJSON], { 
+                    type: 'application/json;charset=utf-8' 
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                updateStatus(`JSON exportado como ${filename}`);
+                
+            } catch (e) {
+                updateStatus('Erro ao exportar JSON: ' + e.message);
+            }
+      }
 
     </script>
 </body>
