@@ -814,6 +814,13 @@
                             </svg>
                             <span id="searchBehaviorText">Manter busca</span>
                         </button>
+                        <button class="btn btn-outline" onclick="openSettings()">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Configurações
+                        </button>
                         <span class="badge badge-orange" id="nodesCount">0 nós</span>
                     </div>
                 </div>
@@ -848,6 +855,85 @@
                 <span id="treeInfo">Profundidade: 0 | Nós: 0</span>
             </div>
         </footer>
+    </div>
+    
+    <!-- Modal de Configurações -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <div class="modal-title">Configurações de Performance</div>
+                <button class="modal-close" onclick="closeSettings()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 0.875rem; color: var(--text); margin-bottom: 1rem;">Limites de Renderização</h3>
+                    
+                    <div style="display: grid; gap: 1rem;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-light);">
+                                Máximo de itens em arrays:
+                            </label>
+                            <input type="number" id="maxArrayItems" min="100" max="10000" step="100" 
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);">
+                            <div style="font-size: 0.7rem; color: var(--text-light); margin-top: 0.25rem;">
+                                Arrays com mais itens serão truncados
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-light);">
+                                Máximo de propriedades em objetos:
+                            </label>
+                            <input type="number" id="maxObjectProperties" min="100" max="5000" step="100"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);">
+                            <div style="font-size: 0.7rem; color: var(--text-light); margin-top: 0.25rem;">
+                                Objetos com mais propriedades serão truncados
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-light);">
+                                Profundidade máxima:
+                            </label>
+                            <input type="number" id="maxDepth" min="10" max="500" step="10"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);">
+                            <div style="font-size: 0.7rem; color: var(--text-light); margin-top: 0.25rem;">
+                                Níveis aninhados além deste limite serão cortados
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-light);">
+                                Tamanho mínimo para aviso (KB):
+                            </label>
+                            <input type="number" id="warningSize" min="10" max="10000" step="10"
+                                   style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);">
+                            <div style="font-size: 0.7rem; color: var(--text-light); margin-top: 0.25rem;">
+                                Exibe aviso quando JSON for maior que este tamanho
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: var(--surface-light); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-light);">
+                        <strong>Dica:</strong> Aumente estes valores para JSONs maiores, mas isso pode afetar a performance.
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; justify-content: space-between;">
+                    <button class="btn btn-outline" onclick="resetToDefaults()">Padrões</button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-outline" onclick="closeSettings()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="saveSettings()">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal para exportação -->
@@ -991,9 +1077,16 @@
         // Sistema de abas
         let tabs = [];
         let activeTabId = null;
+        let userSettings = {
+            maxArrayItems: 1000,
+            maxObjectProperties: 1000,
+            maxDepth: 100,
+            warningSize: 50 // KB
+        };        
         
         let searchBehavior = 'perform'; // 'perform' ou 'clear'
         const SEARCH_BEHAVIOR_KEY = 'json_viewer_search_behavior';
+        const SETTINGS_KEY = 'json_viewer_settings';
 
         function loadSearchBehavior() {
             const savedBehavior = localStorage.getItem(SEARCH_BEHAVIOR_KEY);
@@ -1260,6 +1353,7 @@
             setupMiddleClickClose();
             setupGlobalShortcuts();
             setupPerformanceControls();
+            initializeSettings();
             
             document.getElementById('jsonInput').addEventListener('input', function() {
                 saveCurrentTabState(); // Salva ao digitar
@@ -1372,12 +1466,12 @@
         }
 
         function createTreeView(data, key, isExpanded = false, depth = 0) {
-            // PROTEÇÃO CONTRA RECURSÃO PROFUNDA
-            if (depth > 100) {
+            // PROTEÇÃO CONTRA RECURSÃO PROFUNDA - usa configuração do usuário
+            if (depth > userSettings.maxDepth) {
                 return `
                     <div class="node">
                         <span class="node-key">${key}:</span>
-                        <span class="node-value string">"[...] (profundidade máxima atingida)"</span>
+                        <span class="node-value string">"[...] (profundidade máxima: ${userSettings.maxDepth} níveis)"</span>
                     </div>
                 `;
             }
@@ -1466,9 +1560,9 @@
                         `;
                     });
                 } else {
-                    // Array de objetos - mostra cada item como um nó expandível
-                    // LIMITAÇÃO: para arrays muito grandes, processa apenas os primeiros 1000 itens
-                    const itemsToProcess = data.length > 1000 ? data.slice(0, 1000) : data;
+                    // Array de objetos - usa configuração do usuário
+                    const itemsToProcess = data.length > userSettings.maxArrayItems ? 
+                        data.slice(0, userSettings.maxArrayItems) : data;
                     
                     itemsToProcess.forEach((item, index) => {
                         html += `
@@ -1481,32 +1575,32 @@
                     });
                     
                     // Adiciona mensagem se array foi truncado
-                    if (data.length > 1000) {
+                    if (data.length > userSettings.maxArrayItems) {
                         html += `
                             <div class="node array-item">
                                 <span class="array-value">
-                                    <span class="node-value string">"[...] ${data.length - 1000} itens omitidos (array muito grande)"</span>
+                                    <span class="node-value string">"[...] ${data.length - userSettings.maxArrayItems} itens omitidos (array muito grande)"</span>
                                 </span>
                             </div>
                         `;
                     }
                 }
             } else {
-                // Objeto normal
-                // LIMITAÇÃO: para objetos muito grandes, processa apenas as primeiras 1000 propriedades
+                // Objeto normal - usa configuração do usuário
                 const entries = Object.entries(data);
-                const entriesToProcess = entries.length > 1000 ? entries.slice(0, 1000) : entries;
+                const entriesToProcess = entries.length > userSettings.maxObjectProperties ? 
+                    entries.slice(0, userSettings.maxObjectProperties) : entries;
                 
                 entriesToProcess.forEach(([childKey, childValue]) => {
                     html += createTreeView(childValue, childKey, false, depth + 1);
                 });
                 
                 // Adiciona mensagem se objeto foi truncado
-                if (entries.length > 1000) {
+                if (entries.length > userSettings.maxObjectProperties) {
                     html += `
                         <div class="node">
                             <span class="node-key">[...]:</span>
-                            <span class="node-value string">"${entries.length - 1000} propriedades omitidas (objeto muito grande)"</span>
+                            <span class="node-value string">"${entries.length - userSettings.maxObjectProperties} propriedades omitidas (objeto muito grande)"</span>
                         </div>
                     `;
                 }
@@ -2026,8 +2120,8 @@
         }
 
         function extractPathsRecursive(obj, currentPath, depth = 0) {
-            // PROTEÇÃO CONTRA RECURSÃO PROFUNDA
-            if (depth > 50) {
+            // PROTEÇÃO CONTRA RECURSÃO PROFUNDA - usa configuração do usuário
+            if (depth > Math.min(userSettings.maxDepth, 50)) {
                 return;
             }
             
@@ -2038,27 +2132,25 @@
             }
             
             if (Array.isArray(obj)) {
-                // Array - para cada item, extrair paths sem índices
                 if (obj.length > 0) {
                     const firstItem = obj[0];
                     if (typeof firstItem === 'object' && firstItem !== null) {
-                        // Array de objetos - extrair paths dos campos do primeiro objeto
-                        // LIMITAÇÃO: processa apenas os primeiros 100 itens do array
-                        const itemsToProcess = obj.length > 100 ? obj.slice(0, 100) : obj;
+                        // Array de objetos - usa configuração do usuário
+                        const itemsToProcess = obj.length > userSettings.maxArrayItems ? 
+                            obj.slice(0, userSettings.maxArrayItems) : obj;
                         
                         Object.keys(firstItem).forEach(key => {
                             extractPathsRecursive(firstItem[key], `${currentPath}.${key}`, depth + 1);
                         });
                     } else {
-                        // Array de primitivos - adicionar path do array
                         extractedPaths.push(currentPath);
                     }
                 }
             } else {
-                // Objeto - extrair paths de todas as propriedades
-                // LIMITAÇÃO: processa apenas as primeiras 500 propriedades
+                // Objeto - usa configuração do usuário
                 const keys = Object.keys(obj);
-                const keysToProcess = keys.length > 500 ? keys.slice(0, 500) : keys;
+                const keysToProcess = keys.length > userSettings.maxObjectProperties ? 
+                    keys.slice(0, userSettings.maxObjectProperties) : keys;
                 
                 keysToProcess.forEach(key => {
                     extractPathsRecursive(obj[key], `${currentPath}.${key}`, depth + 1);
@@ -2628,24 +2720,25 @@
         }
 
         function checkJSONSizeAndWarn(jsonText) {
-            try {
-                const warningElement = document.getElementById('performanceWarning');
-                const forceRenderBtn = document.getElementById('forceRenderBtn');
+            const warningElement = document.getElementById('performanceWarning');
+            const forceRenderBtn = document.getElementById('forceRenderBtn');
+            
+            if (!warningElement || !forceRenderBtn) return;
+            
+            // Converte para KB e usa configuração do usuário
+            const sizeInKB = Math.round(jsonText.length / 1024);
+            if (sizeInKB > userSettings.warningSize) {
+                warningElement.style.display = 'block';
+                forceRenderBtn.style.display = 'block';
                 
-                // Se os elementos não existirem, simplesmente retorna sem erro
-                if (!warningElement || !forceRenderBtn) {
-                    return;
+                // Atualiza o texto do aviso para mostrar o tamanho real
+                const warningText = warningElement.querySelector('div:nth-child(2)');
+                if (warningText) {
+                    warningText.textContent = `JSON muito grande (${sizeInKB} KB). Para melhor performance, algumas otimizações foram aplicadas.
+                      Use "Exportar TreeView" para ver todos os dados.`;
                 }
-                
-                if (jsonText.length > 50000) { // 50KB
-                    warningElement.style.display = 'block';
-                    forceRenderBtn.style.display = 'block';
-                } else {
-                    warningElement.style.display = 'none';
-                }
-            } catch (e) {
-                // Ignora silenciosamente qualquer erro relacionado aos elementos de performance
-                console.log('Controles de performance ainda não inicializados');
+            } else {
+                warningElement.style.display = 'none';
             }
         }
 
@@ -2694,6 +2787,83 @@
             } catch (e) {
                 updateStatus('Erro ao exportar JSON: ' + e.message);
             }
+      }
+      
+      function openSettings() {
+              loadSettings(); // Carrega configurações salvas
+              document.getElementById('settingsModal').style.display = 'flex';
+          }
+          
+          function closeSettings() {
+              document.getElementById('settingsModal').style.display = 'none';
+          }
+          
+          function loadSettings() {
+          try {
+              const saved = localStorage.getItem(SETTINGS_KEY);
+              if (saved) {
+                  userSettings = { ...userSettings, ...JSON.parse(saved) };
+              }
+              
+              // Preenche os campos do modal
+              document.getElementById('maxArrayItems').value = userSettings.maxArrayItems;
+              document.getElementById('maxObjectProperties').value = userSettings.maxObjectProperties;
+              document.getElementById('maxDepth').value = userSettings.maxDepth;
+              document.getElementById('warningSize').value = userSettings.warningSize;
+              
+          } catch (e) {
+              console.error('Erro ao carregar configurações:', e);
+          }
+      }
+      
+      function saveSettings() {
+          try {
+              // Obtém valores dos campos
+              userSettings.maxArrayItems = parseInt(document.getElementById('maxArrayItems').value) || 1000;
+              userSettings.maxObjectProperties = parseInt(document.getElementById('maxObjectProperties').value) || 1000;
+              userSettings.maxDepth = parseInt(document.getElementById('maxDepth').value) || 100;
+              userSettings.warningSize = parseInt(document.getElementById('warningSize').value) || 50;
+              
+              // Valida valores mínimos
+              userSettings.maxArrayItems = Math.max(100, userSettings.maxArrayItems);
+              userSettings.maxObjectProperties = Math.max(100, userSettings.maxObjectProperties);
+              userSettings.maxDepth = Math.max(10, userSettings.maxDepth);
+              userSettings.warningSize = Math.max(10, userSettings.warningSize);
+              
+              // Salva no localStorage
+              localStorage.setItem(SETTINGS_KEY, JSON.stringify(userSettings));
+              
+              closeSettings();
+              updateStatus('Configurações salvas!');
+              
+              // Recria a TreeView se houver JSON carregado
+              if (document.getElementById('jsonInput').value.trim()) {
+                  updateTreeView();
+              }
+              
+          } catch (e) {
+              updateStatus('Erro ao salvar configurações: ' + e.message);
+          }
+      }
+      
+      function resetToDefaults() {
+          userSettings = {
+              maxArrayItems: 1000,
+              maxObjectProperties: 1000,
+              maxDepth: 100,
+              warningSize: 50
+          };
+          
+          document.getElementById('maxArrayItems').value = userSettings.maxArrayItems;
+          document.getElementById('maxObjectProperties').value = userSettings.maxObjectProperties;
+          document.getElementById('maxDepth').value = userSettings.maxDepth;
+          document.getElementById('warningSize').value = userSettings.warningSize;
+          
+          updateStatus('Configurações resetadas para padrões');
+      }
+      
+      function initializeSettings() {
+          loadSettings();
       }
 
     </script>
