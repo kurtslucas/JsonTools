@@ -2371,6 +2371,62 @@
                 String(v)
             ).join(', ');
             
+            // --- NOVA SEÇÃO: AGUPRAMENTO POR VALOR ---
+            let groupingHTML = '';
+            if (values.length > 0) {
+                // Agrupa os valores
+                const valueCounts = {};
+                values.forEach(value => {
+                    const key = value === null ? 'null' : String(value);
+                    valueCounts[key] = (valueCounts[key] || 0) + 1;
+                });
+                
+                // Ordena por contagem (decrescente)
+                const sortedEntries = Object.entries(valueCounts).sort((a, b) => b[1] - a[1]);
+                
+                groupingHTML = `
+                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                        <div style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 0.5rem;">
+                            <strong>Agrupamento por Valor</strong>
+                            <span style="font-size: 0.75rem; color: var(--text-light);">
+                                (${sortedEntries.length} valores únicos)
+                            </span>
+                        </div>
+                        <div style="max-height: 200px; overflow-y: auto; font-size: 0.75rem;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: var(--surface-light);">
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border);">Valor</th>
+                                        <th style="padding: 0.5rem; text-align: center; border-bottom: 1px solid var(--border);">Contagem</th>
+                                        <th style="padding: 0.5rem; text-align: center; border-bottom: 1px solid var(--border);">%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                sortedEntries.forEach(([value, count]) => {
+                    const percentage = ((count / values.length) * 100).toFixed(1);
+                    const valueType = getValueType(value);
+                    const typeColor = getTypeColor(valueType);
+                    
+                    groupingHTML += `
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 0.5rem; color: ${typeColor};">${value}</td>
+                            <td style="padding: 0.5rem; text-align: center;">${count}</td>
+                            <td style="padding: 0.5rem; text-align: center;">${percentage}%</td>
+                        </tr>
+                    `;
+                });
+                
+                groupingHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+            // --- FIM DA NOVA SEÇÃO ---
+            
             let resultsHTML = `
                 <div style="margin-bottom: 1rem;">
                     <div style="font-size: 0.875rem; color: var(--text-light);">Path: <strong>${path}</strong></div>
@@ -2383,7 +2439,7 @@
                 </div>
             `;
             
-            // Adiciona a lista de valores, igual na função de estatísticas completas
+            // Adiciona a lista de valores (mantido do original)
             if (values.length > 0) {
                 resultsHTML += `
                     <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-light);">
@@ -2392,9 +2448,12 @@
                 `;
             }
             
+            // Adiciona a seção de agrupamento
+            resultsHTML += groupingHTML;
+            
             document.getElementById('calculatorResults').innerHTML = resultsHTML;
             
-            updateStatus(`Contagem: ${values.length} ocorrências`);
+            updateStatus(`Contagem: ${values.length} ocorrências, ${Object.keys(valueCounts || {}).length} valores únicos`);
         }
 
         function calculateStats() {
@@ -2674,6 +2733,14 @@
                 'desconhecido': 'var(--text-light)'
             };
             return colors[type] || 'var(--text-light)';
+        }
+
+        function getValueType(value) {
+            if (value === 'null') return 'null';
+            if (!isNaN(value) && value.trim() !== '') return 'number';
+            if (value.startsWith('"') && value.endsWith('"')) return 'string';
+            if (value === 'true' || value === 'false') return 'boolean';
+            return 'string';
         }
 
         function getTypeBackground(type) {
