@@ -555,19 +555,29 @@
             scrollbar-width: thin;
             padding: 0 0.25rem;
             align-items: flex-end;
+            cursor: grab;
+        }
+        
+        .tab-list:active {
+            cursor: grabbing;
         }
         
         .tab-list::-webkit-scrollbar {
-            height: 4px;
+            height: 3px;
         }
         
         .tab-list::-webkit-scrollbar-track {
             background: var(--surface-light);
+            border-radius: 3px;
         }
 
         .tab-list::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 2px;
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        .tab-list::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
         }
 
         .tab {
@@ -1115,6 +1125,18 @@
         }
 
         // Inicialização do sistema de abas
+        function setupTabWheelScroll() {
+            const tabList = document.getElementById('tabList');
+            if (!tabList) return;
+            
+            tabList.addEventListener('wheel', function(e) {
+                if (tabList.scrollWidth > tabList.clientWidth) {
+                    e.preventDefault();
+                    tabList.scrollLeft += e.deltaY;
+                }
+            }, { passive: false });
+        }
+
         function initializeTabs() {
             loadTabsFromStorage();
             renderTabs();
@@ -1132,6 +1154,7 @@
                     switchToTab(tabToActivate.id);
                 }
             }
+            setupTabWheelScroll();
         }
 
         // Adiciona uma nova aba
@@ -1212,6 +1235,7 @@
             
             // Salva a aba ativa
             localStorage.setItem('json_viewer_active_tab', activeTabId);
+            setupTabWheelScroll();
         }
 
         // Salva o estado atual da aba ativa
@@ -1249,6 +1273,8 @@
                 
                 tabList.appendChild(tabElement);
             });
+            
+            setupTabWheelScroll();
         }
 
         // Salva as abas no localStorage
@@ -1386,6 +1412,8 @@
                     }
                 }
             });
+            
+            setupTabWheelScroll();
         });
 
         function loadExample() {
